@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+sudo cp ./dirhoster /usr/bin/;
+sudo chmod 777 /usr/bin/dirhoster;
+echo "Done";

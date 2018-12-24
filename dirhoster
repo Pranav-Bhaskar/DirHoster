@@ -1,0 +1,122 @@
+#!/usr/bin/python
+import socket
+import _thread
+import os
+import sys
+
+IP = [l for l in ([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [[(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET,socket.SOCK_DGRAM)]][0][1]]) if l][0][0]
+PORT = 8888
+types = {'pdf' : 'application/pdf', 'acc' : 'audio/x-aac', 'avi' : 'video/x-msvideo', 'mpeg' : 'video/mpeg', 'mp4' : 'video/mp4',  'webm' : 'video/webm', 'css' : 'text/css', 'csv' : 'text/csv', 'html' : 'text/html', 'js' : 'text/javascript', 'txt' : 'text/plain', 'xml' : 'text/xml', 'gif' : 'image/gif', 'jpeg' : 'image/jpeg', 'png' : 'image/png', 'zip' : 'application/zip'}   
+
+def make_page(con, link):
+	files = os.listdir(link)
+	content = '<!DOCTYPE html>\r\n<html>\r\n<head>\r\n<title>' + link.split('/')[-1] + '</title><meta name="viewport" content="width=device-width, initial-scale=1">\r\n<style>\r\n.vertical-menu {\r\n  width: 200px;\r\n}\r\n\r\n.vertical-menu a {\r\n  background-color: #eee;\r\n  color: black;\r\n  display: block;\r\n  padding: 12px;\r\n  text-decoration: none;\r\n}\r\n\r\n.vertical-menu a:hover {\r\n  background-color: #ccc;\r\n}\r\n\r\n.vertical-menu a.active {\r\n  background-color: #4CAF50;\r\n  color: white;\r\n}\r\n</style>\r\n</head>\r\n<body>\r\n<h1>Contents Of Directory</h1>\r\n<div class="vertical-menu">\r\n'
+	for f in files:
+		content += '<a href=\'' + f + '\'>' + f + '</a>'
+	content += '</div>\r\n</body>\r\n</html>'
+	headers = 'HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n'
+	header_bytes = headers.encode()
+	bytes = content.encode()
+	con.send(header_bytes)
+	con.send(bytes)
+
+def check_exist(con, link):
+	link = '.' + link
+	if '..' in link:
+		print('ERROR : Fishy link')
+		return
+	
+	if os.path.isfile(link):
+		send_page(con, link)
+	
+	elif os.path.exists(link):
+		if link[-1] != '/':
+			link += '/'
+		if os.path.isfile(link + 'index.html'):
+			send_page(con, link + 'index.html')
+		else:
+			make_page(con, link)
+	
+	else:
+		con.send('HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\n\r\n')
+		con.send('Error : 404'.encode())
+
+def send_page(con, link):
+	myfile = open(link, 'rb')
+	bytes = myfile.read()
+	myfile.close()
+	headers = 'HTTP/1.1 200 OK\r\nContent-Type: {content_type}\r\n\r\n'
+	ext = link.split('.')[-1]
+	if ext in types:
+		header_bytes = headers.format(content_type = types[ext])
+	else:
+		header_bytes = headers.format(content_type = 'application/octet-stream')
+		header_bytes[:-2] + 'Content-Disposition: attachment; filename="' + link.strip('/')[-1] + '"\r\n\r\n'
+	header_bytes = header_bytes.encode()
+	con.send(header_bytes)
+	con.send(bytes)
+
+def request_processor(con, request, ip):
+	request = request.split('\r\n')
+	if len(request) < 1:
+		print('ERROR : Empty request from : ' + ip)
+		return
+	
+	request = request[0].split(' ')
+	if request[0] != 'GET':
+		print('ERROR : Not get request from : ' + ip)
+		return
+	if request[-1] != 'HTTP/1.1':
+		print('ERROR : Unknown request from : ' + ip)
+		return
+	
+	link = ' '.join(request[1:-1])
+	print('Received request : ' + link + ' from : ' + ip)
+	check_exist(con, link)
+
+def get_request(con, data):
+	ip, port = data
+	request = con.recv(1024)
+	try:
+		request = request.decode('utf-8')
+
+	except:
+		print('ERROR : Unable to decode a request from : ' + ip)
+		return
+	
+	request_processor(con, request, ip)
+	con.shutdown(socket.SHUT_RDWR)
+	con.close()
+	
+def init():
+	global s
+	global PORT
+	if len(sys.argv) == 2:
+		try:
+			PORT = int(sys.argv[1])
+		except:
+			print('ERROR : The command line arguments provided were unclear.')
+			PORT = 8888
+	print('Hosting Directory on http://' + IP + ':' + str(PORT))
+	s = socket.socket()
+	s.bind((IP, PORT))
+	s.listen(50)
+	print('Now Listening...')
+
+if __name__ == '__main__':
+	try:
+		init()
+
+	except:
+		print('ERROR : Could\'t create server. PORT pre-occupied')
+		print('Exitting...')
+		exit()
+
+	try:
+		while True:
+			con, data = s.accept()
+			_thread.start_new_thread(get_request, (con, data))
+		
+	except:
+		s.close()
+	print('Exitting...')
