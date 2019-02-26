@@ -22,7 +22,7 @@ Type :
   
 to change the current directory.
   
-`chmod 777 install`
+`chmod 755 install`
   
 to give executable permitions to the install file.
   
