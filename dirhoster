@@ -3,10 +3,12 @@ import socket
 import _thread
 import os
 import sys
+import base64
 
 IP = [l for l in ([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [[(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET,socket.SOCK_DGRAM)]][0][1]]) if l][0][0]
 PORT = 8888
-types = {'pdf' : 'application/pdf', 'acc' : 'audio/x-aac', 'avi' : 'video/x-msvideo', 'mpeg' : 'video/mpeg', 'mp4' : 'video/mp4',  'webm' : 'video/webm', 'css' : 'text/css', 'csv' : 'text/csv', 'html' : 'text/html', 'js' : 'text/javascript', 'txt' : 'text/plain', 'xml' : 'text/xml', 'gif' : 'image/gif', 'jpeg' : 'image/jpeg', 'png' : 'image/png', 'zip' : 'application/zip'}   
+types = {'pdf' : 'application/pdf', 'acc' : 'audio/x-aac', 'avi' : 'video/x-msvideo', 'mpeg' : 'video/mpeg', 'mp4' : 'video/mp4',  'webm' : 'video/webm', 'css' : 'text/css', 'csv' : 'text/csv', 'html' : 'text/html', 'js' : 'text/javascript', 'txt' : 'text/plain', 'xml' : 'text/xml', 'gif' : 'image/gif', 'jpeg' : 'image/jpeg', 'png' : 'image/png', 'ico' : 'image/icon', 'zip' : 'application/zip'}   
+favicon = base64.b64decode('AAABAAEAEBAAAAEAIABoBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAAAQAAMMOAADDDgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAYAAAAGAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGAAAAIAAAACMAAAA6AAAAOgAAACMAAAAiAAAACgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAQAAAACAAAAJQAAACUAAAACAAAABAAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMAAAAIgAAAFEAAABRAAAAJQAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAARAAAATAAAADQAAAArAAAAKgAAADEAAABLAAAAHAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIQAAAEcAAAAhAAAAKwAAACsAAAAhAAAAOwAAADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8AAAB1AAAAUQAAAEoAAABKAAAAUAAAAHUAAAAxAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAARwAAABMAAAAXAAAAGAAAABEAAAA3AAAALwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAHEAAABZAAAAWQAAAFoAAABVAAAAYgAAADMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAABSAAAAGAAAABUAAAAVAAAAFwAAAEgAAAAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAhAAAASgAAABsAAAAcAAAAGwAAAB0AAABIAAAAMgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgAAAE0AAAA+AAAAMwAAADIAAAA8AAAAUAAAABgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHAAAAGAAAACIAAAAjAAAAGwAAAAkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//8AAPAPAADwDwAA8A8AAPgPAADwDwAA8A8AAPAPAADwDwAA8A8AAPAPAADwDwAA8A8AAPgfAAD//wAA//8AAA==')
 
 def make_page(con, link):
 	files = os.listdir(link)
@@ -37,8 +39,12 @@ def check_exist(con, link):
 		else:
 			make_page(con, link)
 	
+	elif link == './favicon.ico':
+		con.send('HTTP/1.1 200 OK\r\nContent-Disposition: attachment; filename="favicon.ico"\r\n\r\n'.encode())
+		con.send(favicon)
+	
 	else:
-		con.send('HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\n\r\n')
+		con.send('HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\n\r\n'.encode())
 		con.send('Error : 404'.encode())
 
 def send_page(con, link):
@@ -71,7 +77,8 @@ def request_processor(con, request, ip):
 		return
 	
 	link = ' '.join(request[1:-1])
-	print('Received request : ' + link + ' from : ' + ip)
+	sys.stdout.write('Received request : ' + link + ' from : ' + ip + '\n')
+	sys.stdout.flush()
 	check_exist(con, link)
 
 def get_request(con, data):
